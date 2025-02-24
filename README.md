@@ -1,3 +1,15 @@
+<?php
+session_start();
+if (!isset($_SESSION['history'])) {
+    $_SESSION['history'] = [];
+}
+
+// Hapus riwayat jika tombol ditekan
+if (isset($_POST['clear_history'])) {
+    $_SESSION['history'] = [];
+}
+?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -48,70 +60,82 @@
         button:hover {
             background: #ff5252;
         }
-        #result, #history {
+        #result {
             margin-top: 15px;
             font-weight: bold;
             font-size: 18px;
             color: #333;
         }
         #history {
+            margin-top: 20px;
             text-align: left;
             font-size: 14px;
             color: #555;
-            margin-top: 20px;
             max-height: 150px;
             overflow-y: auto;
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>Sistem Pemesanan Tiket Bioskop</h2>
-        <label for="usia">Masukkan Usia Anda:</label>
-        <input type="number" id="usia" placeholder="Masukkan usia" min="1">
-        <button onclick="cekHargaTiket()">Cek Harga Tiket</button>
-        <p id="result"></p>
-        <div id="history"><h3>Riwayat Pemesanan</h3><ul id="history-list"></ul></div>
+        <form method="POST" action="">
+            <label for="usia">Masukkan Usia Anda:</label>
+            <input type="number" name="usia" id="usia" placeholder="Masukkan usia" min="1" required>
+            <button type="submit">Cek Harga Tiket</button>
+        </form>
+        
+        <?php
+            if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['clear_history'])) {
+                $usia = isset($_POST["usia"]) ? (int)$_POST["usia"] : 0;
+                $harga = "";
+                $hargaAsli = 50000;
+                $diskon = 0;
+                $hargaDiskon = $hargaAsli;
+
+                if ($usia <= 0) {
+                    $harga = "Masukkan usia yang valid!";
+                } elseif ($usia < 5) {
+                    $harga = "Gratis!";
+                } elseif ($usia >= 5 && $usia <= 12) {
+                    $harga = "Rp20.000";
+                } elseif ($usia >= 13 && $usia <= 17) {
+                    $harga = "Rp30.000";
+                } elseif ($usia >= 18 && $usia <= 59) {
+                    $harga = "Rp50.000";
+                } else {
+                    $diskon = 50;
+                    $hargaDiskon = $hargaAsli - ($hargaAsli * $diskon / 100);
+                    $harga = "Rp" . number_format($hargaAsli, 0, ',', '.') . " (Diskon {$diskon}%) → Rp" . number_format($hargaDiskon, 0, ',', '.');
+                }
+                
+                echo "<p id='result' style='color: " . ($usia <= 0 ? 'red' : 'green') . ";'>Harga tiket Anda: $harga</p>";
+                
+                if ($usia > 0) {
+                    $_SESSION['history'][] = "Usia: $usia - Harga: $harga";
+                }
+            }
+        ?>
+
+        <div id="history">
+            <h3>Riwayat Pemesanan</h3>
+            <ul>
+                <?php
+                    if (!empty($_SESSION['history'])) {
+                        foreach (array_reverse($_SESSION['history']) as $historyItem) {
+                            echo "<li>$historyItem</li>";
+                        }
+                    } else {
+                        echo "<li>Belum ada riwayat pemesanan</li>";
+                    }
+                ?>
+            </ul>
+            <form method="POST" action="">
+                <button type="submit" name="clear_history">Hapus Riwayat</button>
+            </form>
+        </div>
     </div>
-
-    <script>
-        function cekHargaTiket() {
-            let usia = document.getElementById("usia").value;
-            let result = document.getElementById("result");
-            let historyList = document.getElementById("history-list");
-            
-            if (usia === "" || usia <= 0) {
-                result.innerText = "Masukkan usia yang valid!";
-                result.style.color = "red";
-                return;
-            }
-
-            let harga = "";
-            let hargaAsli = 50000;
-            let diskon = 0;
-            let hargaDiskon = hargaAsli;
-
-            if (usia < 5) {
-                harga = "Gratis!";
-            } else if (usia >= 5 && usia <= 12) {
-                harga = "Rp20.000";
-            } else if (usia >= 13 && usia <= 17) {
-                harga = "Rp30.000";
-            } else if (usia >= 18 && usia <= 59) {
-                harga = "Rp50.000";
-            } else {
-                diskon = 50; // Diskon 50%
-                hargaDiskon = hargaAsli - (hargaAsli * diskon / 100);
-                harga = `Rp${hargaAsli.toLocaleString()} (Diskon ${diskon}%) → Rp${hargaDiskon.toLocaleString()}`;
-            }
-            
-            result.innerText = "Harga tiket Anda: " + harga;
-            result.style.color = "green";
-            
-            let newHistoryItem = document.createElement("li");
-            newHistoryItem.innerText = `Usia: ${usia} - Harga: ${harga}`;
-            historyList.appendChild(newHistoryItem);
-        }
-    </script>
 </body>
 </html>
